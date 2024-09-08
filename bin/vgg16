@@ -5,6 +5,7 @@ from tensorflow.keras.applications.vgg16 import VGG16
 from tensorflow.keras.preprocessing import image
 from tensorflow.keras.applications.vgg16 import preprocess_input
 from tensorflow.keras.models import Model
+import os
 import sys
 import joblib
 import numpy as np
@@ -30,6 +31,10 @@ if args.block < 1 or args.block > 5:
 file_path = file_paths[0]
 save_path = file_paths[1]
 
+data = joblib.load(file_path)
+
+# size should be 224, 224, 3
+
 base_model = VGG16(weights='imagenet')
 
 print(base_model.summary())
@@ -52,11 +57,12 @@ output_list = [base_model.get_layer('block1_pool').output,
 active_model = Model(inputs=base_model.input,
                      outputs=output_list)
 
-data = joblib.load(file_path)
 data = np.expand_dims(data, axis=0)
 x = preprocess_input(data)
 
 features = active_model.predict(x)
+
+os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
 if args.block == 1:
     joblib.dump(features[0][0,:,:,63], save_path)
