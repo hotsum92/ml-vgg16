@@ -1,27 +1,47 @@
 #!/usr/bin/env python
 
+import argparse
 from tensorflow.keras.applications.vgg16 import VGG16
 from tensorflow.keras.preprocessing import image
 from tensorflow.keras.applications.vgg16 import preprocess_input
 from tensorflow.keras.models import Model
+import sys
+import joblib
 import numpy as np
+import matplotlib.pyplot as plt
+
+parser = argparse.ArgumentParser()
+parser.add_argument('file_paths', nargs='+')
+
+parser.add_argument('--block', type=int, default=5)
+
+args = parser.parse_args()
+
+file_paths = args.file_paths
+
+if len(file_paths) != 2:
+    print('<image file> <save file>', file=sys.stderr)
+    sys.exit(1)
+
+if args.block < 1 or args.block > 5:
+    print('block must be between 1 and 5', file=sys.stderr)
+    sys.exit(1)
+
+file_path = file_paths[0]
+save_path = file_paths[1]
 
 base_model = VGG16(weights='imagenet')
+
 print(base_model.summary())
+#layer_name_list = []
+#for layer in base_model.layers:
+#    print(layer.name)
+#    layer_name_list.append(layer.name)
 
-layer_name_list = []
-for layer in base_model.layers:
-    # print(layer)
-    # print(layer.name)
-    layer_name_list.append(layer.name)
-
-print(len(layer_name_list))
-print(layer_name_list)
-
-sample_output = base_model.get_layer('block1_pool').output
-print('sample output:', sample_output)
-print('sample output shape:', sample_output.shape)
-print('sample output type:', type(sample_output))
+#sample_output = base_model.get_layer('block1_pool').output
+#print('sample output:', sample_output)
+#print('sample output shape:', sample_output.shape)
+#print('sample output type:', type(sample_output))
 
 output_list = [base_model.get_layer('block1_pool').output,
                base_model.get_layer('block2_pool').output,
@@ -32,29 +52,38 @@ output_list = [base_model.get_layer('block1_pool').output,
 active_model = Model(inputs=base_model.input,
                      outputs=output_list)
 
-img_path = './tmp.webp'
-img = image.load_img(img_path, target_size=(224,224))
-x = image.img_to_array(img)
-x = np.expand_dims(x, axis=0)
-print(x.shape)
-x = preprocess_input(x)
+data = joblib.load(file_path)
+data = np.expand_dims(data, axis=0)
+x = preprocess_input(data)
 
 features = active_model.predict(x)
 
-print('number_of_outputs', len(features))
-print('1st outputs shape', features[0].shape)
-print('2nd outputs shape', features[1].shape)
-print('3rd outputs shape', features[2].shape)
-print('4st outputs shape', features[3].shape)
-print('5st outputs shape', features[4].shape)
+if args.block == 1:
+    joblib.dump(features[0][0,:,:,63], save_path)
+elif args.block == 2:
+    joblib.dump(features[1][0,:,:,127], save_path)
+elif args.block == 3:
+    joblib.dump(features[2][0,:,:,255], save_path)
+elif args.block == 4:
+    joblib.dump(features[3][0,:,:,511], save_path)
+elif args.block == 5:
+    joblib.dump(features[4][0,:,:,511], save_path)
+else:
+    print('block must be between 1 and 5', file=sys.stderr)
+    sys.exit(1)
 
-import matplotlib.pyplot as plt
-
-fig, ax = plt.subplots(nrows=1, ncols=5, figsize=(12,4) )
-ax[0].imshow(features[0][0,:,:,63])
-ax[1].imshow(features[1][0,:,:,127])
-ax[2].imshow(features[2][0,:,:,255])
-ax[3].imshow(features[3][0,:,:,511])
-ax[4].imshow(features[4][0,:,:,511])
-
-plt.savefig('output.png')
+#print('number_of_outputs', len(features))
+#print('1st outputs shape', features[0].shape)
+#print('2nd outputs shape', features[1].shape)
+#print('3rd outputs shape', features[2].shape)
+#print('4st outputs shape', features[3].shape)
+#print('5st outputs shape', features[4].shape)
+#
+#fig, ax = plt.subplots(nrows=1, ncols=5, figsize=(12,4) )
+#ax[0].imshow(features[0][0,:,:,63])
+#ax[1].imshow(features[1][0,:,:,127])
+#ax[2].imshow(features[2][0,:,:,255])
+#ax[3].imshow(features[3][0,:,:,511])
+#ax[4].imshow(features[4][0,:,:,511])
+#
+#plt.savefig('output.png')
